@@ -24,11 +24,15 @@ Real-time 1v1 multiplayer quiz game built with React, Node.js, Socket.IO, and My
 | Containerization | Docker + Docker Compose |
 
 ## Quick Start
-
+```bash
+git clone https://github.com/mahe15/quiz
+```
 ### Option 1: Docker (Recommended)
 
+"In Your Linux Ubuntu"
+
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 Open [http://localhost:5000](http://localhost:5000) — that's it!
