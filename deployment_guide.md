@@ -204,24 +204,6 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      # Log into Docker Hub to push image
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # Build and push the main Docker image
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/quizbattle:latest
-
       # SSH into EC2 and run pull/redeploy script
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -232,7 +214,6 @@ jobs:
           script: |
             cd quiz
             git pull origin main
-            docker compose pull
             docker compose up -d --build
             docker image prune -f
 ```
