@@ -2,151 +2,304 @@
 
 Real-time 1v1 multiplayer quiz game built with React, Node.js, Socket.IO, and MySQL.
 
-## Features
+---
 
-- **1v1 Real-time Battles** — Challenge other players head-to-head
-- **Instant Matchmaking** — Socket.IO powered queue system
-- **Speed Scoring** — Faster answers earn bonus points (100 base + remaining_sec × 5)
-- **10 Questions per Match** — 10 seconds per question, auto-advance on timeout
-- **Beautiful UI** — Dark gradient theme, glassmorphism, Framer Motion animations
-- **Confetti for Winners** 🎉
+## 🏗️ System & Deployment Architecture
 
-## Tech Stack
+```mermaid
+graph TD
+    subgraph DevEnv["💻 Developer Machine"]
+        Dev["Developer"] -->|git push origin main| GitHub["GitHub Repository (mahe15/quiz)"]
+    end
 
-| Component | Technology |
-|-----------|------------|
-| Frontend | React + Vite |
-| Styling | Tailwind CSS v4 |
-| Animation | Framer Motion |
-| Backend | Node.js + Express |
-| Realtime | Socket.IO |
-| Database | MySQL 8 |
-| Containerization | Docker + Docker Compose |
-| CI/CD Pipeline | GitHub Actions |
+    subgraph GHActions["⚙️ GitHub Actions CI/CD Pipeline"]
+        GitHub -->|Triggers Workflow| Runner["GitHub Actions Runner (ubuntu-latest)"]
+        
+        subgraph CI_Stage["Phase 1: Continuous Integration (CI)"]
+            Runner --> Step1["Setup Node.js 22"]
+            Step1 --> Step2["Frontend Lint (Oxlint) & Build (Vite)"]
+            Step2 --> Step3["Backend Deps Install"]
+            Step3 --> Step4["Docker Build Verification"]
+        end
 
-## Quick Start
-```bash
-git clone https://github.com/mahe15/quiz
+        subgraph CD_Stage["Phase 2: Continuous Deployment (CD)"]
+            Step4 -->|On Push to main| SSH_Step["SSH Action (appleboy/ssh-action)"]
+        end
+    end
+
+    subgraph AWSEC2["☁️ AWS EC2 Production Server"]
+        SSH_Step -->|Connects via SSH| EC2_Host["EC2 Linux Host"]
+        
+        subgraph DockerNetwork["🐳 Docker Compose Network (quizbattle_default)"]
+            EC2_Host -->|docker compose up -d --build| App_Container["📦 App Container (quizbattle-app)\n• Node.js 20 Express Backend (:5000)\n• Socket.IO Real-time Engine\n• Static Vite Frontend (dist/)"]
+            
+            EC2_Host --> DB_Container["📦 Database Container (quizbattle-db)\n• MySQL 8.0 Container (:3306)\n• Healthcheck: mysqladmin ping"]
+            
+            App_Container -->|MySQL TCP :3306| DB_Container
+            DB_Container --> Volume["💾 Host Volume (mysql_data)"]
+        end
+    end
+
+    subgraph Players["👥 End Users / Players"]
+        P1["Player 1 Browser"] -->|HTTP / WebSocket :5000| App_Container
+        P2["Player 2 Browser"] -->|HTTP / WebSocket :5000| App_Container
+    end
+
+    style DevEnv fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#cdd6f4
+    style GHActions fill:#181825,stroke:#f9e2af,stroke-width:2px,color:#cdd6f4
+    style AWSEC2 fill:#11111b,stroke:#a6e3a1,stroke-width:2px,color:#cdd6f4
+    style DockerNetwork fill:#1e1e2e,stroke:#74c7ec,stroke-width:2px,color:#cdd6f4
+    style Players fill:#1e1e2e,stroke:#cba6f7,stroke-width:2px,color:#cdd6f4
 ```
-### Option 1: Docker (Recommended)
 
-In Your Linux / Ubuntu / Local environment:
+---
+
+## 🔄 CI/CD Deployment Sequence Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer
+    participant GH as GitHub Repository
+    participant GA as GitHub Actions
+    participant EC2 as AWS EC2 Server
+    participant DC as Docker Compose
+
+    Dev->>GH: git push origin main
+    GH->>GA: Trigger ci-cd.yml workflow
+    
+    rect rgb(30, 30, 46)
+        note over GA: Phase 1: CI Checks (Build & Test)
+        GA->>GA: Setup Node.js 22 & npm cache
+        GA->>GA: Run Frontend Oxlint & Vite Build
+        GA->>GA: Validate Backend dependencies
+        GA->>GA: Test Dockerfile multi-stage build (quizbattle:ci)
+    end
+
+    rect rgb(17, 17, 27)
+        note over GA, EC2: Phase 2: SSH Continuous Deployment
+        GA->>EC2: SSH Connection via appleboy/ssh-action (HOST, USERNAME, SSH_PRIVATE_KEY)
+        EC2->>GH: git pull origin main
+        EC2->>DC: docker compose up -d --build
+        DC->>DC: Rebuild & restart quizbattle-app
+        DC->>DC: Validate mysql container health
+        EC2->>DC: docker image prune -f
+    end
+    
+    GA-->>Dev: Pipeline Succeeded ✅
+```
+
+---
+
+## 📦 Container Multi-Stage Build Architecture
+
+```mermaid
+graph LR
+    subgraph Stage1["Stage 1: Frontend Build (node:20-alpine)"]
+        S1_Src["Copy frontend/ package.json"] --> S1_Install["npm ci"]
+        S1_Install --> S1_Build["npm run build"]
+        S1_Build --> S1_Dist["/app/frontend/dist/"]
+    end
+
+    subgraph Stage2["Stage 2: Production Container (node:20-alpine)"]
+        S2_Backend["Copy backend/ & npm ci --omit=dev"]
+        S1_Dist -->|COPY --from=frontend-build| S2_Static["/app/frontend/dist/"]
+        S2_Backend --> S2_Server["Backend Server (server.js)"]
+        S2_Static --> S2_Server
+        S2_Server --> Entry["EXPOSE 5000 & CMD ['node', 'server.js']"]
+    end
+
+    style Stage1 fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#cdd6f4
+    style Stage2 fill:#181825,stroke:#a6e3a1,stroke-width:2px,color:#cdd6f4
+```
+
+---
+
+## ✨ Features
+
+- **1v1 Real-time Battles** — Challenge other players head-to-head instantly.
+- **Instant Matchmaking** — Queue system powered by Socket.IO.
+- **Speed Scoring System** — Faster responses score higher: `100 base + (remaining_sec × 5)`.
+- **10 Questions per Match** — 10 seconds per question with auto-advance on timeout.
+- **Modern Responsive UI** — Dark theme, glassmorphism, Framer Motion animations.
+- **Confetti Victory Celebrations** 🎉
+- **Automated CI/CD** — Zero-downtime deployment via GitHub Actions & Docker Compose.
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend** | React 19 + Vite | Fast SPA framework |
+| **Styling** | Tailwind CSS v4 | Utility-first CSS engine |
+| **Animation** | Framer Motion + Canvas Confetti | Smooth UI transitions & win effects |
+| **Backend** | Node.js + Express | RESTful API & static asset server |
+| **Real-time Engine** | Socket.IO | Bidirectional WebSocket matchmaking & game state sync |
+| **Database** | MySQL 8.0 | Structured storage for questions & match logs |
+| **Containerization** | Docker + Docker Compose | Multi-stage production image orchestration |
+| **CI/CD Pipeline** | GitHub Actions | Automated build, linting, and SSH deployment |
+
+---
+
+## 🚀 Quick Start
+
+### Option 1: Docker (Recommended for Production & Local Testing)
+
+Run the entire application (Backend + Frontend + MySQL) in one command:
 
 ```bash
 docker compose up --build
 ```
 
-Open [http://localhost:5000](http://localhost:5000) — that's it!
+Open [http://localhost:5000](http://localhost:5000) in your browser.
 
-### Option 2: Local Development
+---
 
-**Prerequisites:** Node.js 18+, MySQL 8
+### Option 2: Local Development Setup
+
+**Prerequisites:** Node.js 18+ and MySQL 8 installed locally.
 
 #### 1. Database Setup
-
 ```bash
 mysql -u root -p < database/schema.sql
 mysql -u root -p < database/questions.sql
 ```
 
-#### 2. Backend
-
+#### 2. Backend Setup
 ```bash
 cd backend
-cp .env.example .env   # Edit with your MySQL credentials
+cp .env.example .env   # Configure your MySQL credentials
 npm install
-npm run dev             # Starts on :5000
+npm run dev             # Backend starts on http://localhost:5000
 ```
 
-#### 3. Frontend
-
+#### 3. Frontend Setup
 ```bash
 cd frontend
 npm install
-npm run dev             # Starts on :5173 with proxy to :5000
+npm run dev             # Frontend starts on http://localhost:5173
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in **two tabs** and click **Play Now** in both!
+Open [http://localhost:5173](http://localhost:5173) in **two browser tabs** and click **Play Now** in both to simulate a 1v1 battle!
 
-## Project Structure
+---
+
+## 📁 Project Structure
 
 ```
 QuizBattle/
 ├── .github/
-│   └── workflows/      # GitHub Actions CI/CD workflows (ci-cd.yml)
-├── frontend/          # React + Vite
+│   └── workflows/
+│       └── ci-cd.yml           # GitHub Actions CI/CD Pipeline
+├── frontend/                   # React + Vite Client Application
 │   └── src/
-│       ├── components/  # Navbar, Hero, GameCard, QuestionCard, Timer, etc.
-│       ├── pages/       # Home, Matchmaking, Game, Result
-│       ├── hooks/       # useSocket, useTimer
-│       └── services/    # socket.js, api.js
-├── backend/           # Node.js + Express + Socket.IO
-│   ├── config/          # db.js (MySQL pool)
-│   ├── controllers/     # quizController, gameController
-│   ├── routes/          # quizRoutes
-│   ├── socket/          # socketHandler (matchmaking + game loop)
-│   ├── utils/           # calculateScore, shuffleQuestions
-│   └── server.js
-├── database/          # SQL schema + seed data
-├── Dockerfile
-├── docker-compose.yml
-├── deployment_guide.md
-└── README.md
+│       ├── components/         # Navbar, Hero, GameCard, QuestionCard, Timer, etc.
+│       ├── pages/              # Home, Matchmaking, Game, Result
+│       ├── hooks/              # useSocket, useTimer
+│       └── services/           # socket.js, api.js
+├── backend/                    # Node.js + Express + Socket.IO Server
+│   ├── config/                 # db.js (MySQL connection pool)
+│   ├── controllers/            # quizController, gameController
+│   ├── routes/                 # quizRoutes
+│   ├── socket/                 # socketHandler (matchmaking queue & game loops)
+│   ├── utils/                  # calculateScore, shuffleQuestions
+│   └── server.js               # Application entry point & static file server
+├── database/                   # MySQL Schema and Initial Question Seeds
+│   ├── schema.sql              # Table definitions (users, questions, matches)
+│   └── questions.sql           # Seed quiz questions
+├── Dockerfile                  # Multi-stage production container build
+├── docker-compose.yml          # Container orchestration (App + MySQL)
+├── deployment_guide.md         # Full AWS EC2 Deployment Guide
+├── docker_architecture_guide.md# Docker Architecture Deep-Dive
+└── README.md                   # Project documentation
 ```
 
-## CI/CD & Deployment
+---
 
-QuizBattle comes configured with an automated **GitHub Actions CI/CD Pipeline**:
+## 🔑 GitHub Actions & Server Deployment Setup
 
-- **Continuous Integration (CI)**:
-  - Runs on every `push` and `pull_request` to `main`.
-  - Performs Oxlint code linting (`npm run lint`).
-  - Verifies Vite production build (`npm run build`).
-  - Tests multi-stage Docker build (`Dockerfile`).
-- **Continuous Deployment (CD)**:
-  - Runs automatically when changes are merged into `main`.
-  - Pushes production Docker container image to **Docker Hub**.
-  - Deploys automatically to an AWS EC2 instance (or host server) via SSH.
+### 1. Required GitHub Repository Secrets
 
-For detailed setup instructions, see [deployment_guide.md](file:///c:/Users/Mahendra%20desai/OneDrive/Desktop/quiz%20game/deployment_guide.md) and [docker_architecture_guide.md](file:///c:/Users/Mahendra%20desai/OneDrive/Desktop/quiz%20game/docker_architecture_guide.md).
+Under **Settings > Secrets and variables > Actions**, add the following repository secrets:
 
-## Game Flow
+| Secret Name | Description | Example Value |
+| :--- | :--- | :--- |
+| `HOST` | EC2 Public IP address or domain | `54.210.45.12` |
+| `USERNAME` | Linux SSH user | `ubuntu` or `ec2-user` |
+| `SSH_PRIVATE_KEY` | Contents of your EC2 `.pem` SSH key | `-----BEGIN OPENSSH PRIVATE KEY----- ...` |
 
-1. **Home** → Click "Play Now"
-2. **Matchmaking** → Wait for opponent (socket queue)
-3. **Countdown** → 3... 2... 1... GO!
-4. **Game** → 10 questions, 10s each, live score updates
-5. **Result** → Winner banner, stats, confetti 🎉
-6. **Play Again** or **Home**
+### 2. EC2 Server One-Time Setup Commands
 
-## API Routes
+SSH into your AWS EC2 instance and execute:
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | `/api/questions` | Fetch 10 random questions |
-| GET | `/api/online` | Online player count |
-| GET | `/api/match/:id` | Match results |
-| GET | `/api/health` | Health check |
+```bash
+# Update system & install Docker & Git
+sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2 git
 
-## Socket Events
+# Add ubuntu user to docker group
+sudo usermod -aG docker ubuntu
+newgrp docker
 
-| Direction | Event | Description |
-|-----------|-------|-------------|
-| Client → | `joinQueue` | Enter matchmaking |
-| Client → | `leaveQueue` | Cancel matchmaking |
-| Client → | `submitAnswer` | Submit answer + time |
-| → Client | `matchFound` | Paired with opponent |
-| → Client | `countdown` | 3, 2, 1, GO |
-| → Client | `nextQuestion` | New question data |
-| → Client | `answerResult` | Correct/wrong feedback |
-| → Client | `scoreUpdate` | Both players' scores |
-| → Client | `gameOver` | Final results |
+# Clone repository to host
+git clone https://github.com/mahe15/quiz.git quiz
+cd quiz
 
-## Scoring
+# Start container initial stack
+docker compose up -d --build
+```
 
-| Action | Points |
-|--------|--------|
-| Correct answer | 100 |
-| Speed bonus | Remaining seconds × 5 |
-| Example: 4s answer | 100 + (6 × 5) = **130** |
-| Wrong / Skipped | 0 |
+---
+
+## 🎮 Game Engine & Socket Events
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle: Player opens app
+    Idle --> Matchmaking: Emit 'joinQueue'
+    Matchmaking --> Countdown: Opponent Found ('matchFound')
+    Countdown --> InGame: Emit 'countdown' (3..2..1)
+    
+    state InGame {
+        [*] --> QuestionLoop
+        QuestionLoop --> Answered: Player selects choice ('submitAnswer')
+        QuestionLoop --> Timeout: 10s Timer Expiry
+        Answered --> NextQuestion: Emit 'answerResult' & 'scoreUpdate'
+        Timeout --> NextQuestion: Auto-advance
+        NextQuestion --> QuestionLoop: Repeat until 10 questions complete
+    }
+    
+    InGame --> GameOver: Emit 'gameOver'
+    GameOver --> Idle: Click 'Play Again'
+```
+
+### Socket Event Reference
+
+| Direction | Event Name | Description | Payload / Details |
+| :--- | :--- | :--- | :--- |
+| Client → Server | `joinQueue` | Request matchmaking | `{ playerName: "Alex" }` |
+| Client → Server | `leaveQueue` | Cancel matchmaking | `-` |
+| Client → Server | `submitAnswer` | Submit answer choice | `{ matchId, questionIndex, answer, timeRemaining }` |
+| Server → Client | `matchFound` | Opponent matched | `{ matchId, opponent: { name, score } }` |
+| Server → Client | `countdown` | Match starting count | `{ seconds: 3 }` |
+| Server → Client | `nextQuestion` | Broadcast question | `{ questionIndex, question, options, total }` |
+| Server → Client | `answerResult` | Feedback on answer | `{ correct: true/false, correctAnswer, score }` |
+| Server → Client | `scoreUpdate` | Live score state | `{ player1Score, player2Score }` |
+| Server → Client | `gameOver` | Final match stats | `{ winner, player1Score, player2Score, stats }` |
+
+---
+
+## 🎯 Scoring Logic
+
+| Action | Score Calculation | Example |
+| :--- | :--- | :--- |
+| **Correct Answer** | Base `100` pts + Speed Bonus `(Remaining Sec × 5)` | Answered in 4s (6s left): `100 + (6 × 5) = 130 pts` |
+| **Wrong Answer** | `0` pts | `0 pts` |
+| **Timeout / Skipped** | `0` pts | `0 pts` |
+
+---
+
+## 📜 License & Author
+
+Developed by **Mahendra Desai** ([@mahe15](https://github.com/mahe15)).  
+Distributed under the MIT License.
