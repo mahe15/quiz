@@ -224,4 +224,3 @@ With the workflow saved:
 2. The code is tested & verified.
 3. The Docker image is compiled and pushed to your Docker Hub repository.
 4. GitHub Actions connects to the EC2 server via SSH, pulls the latest changes from Git, pulls the latest built container images, runs `docker compose up -d --build`, and safely cleans up old unused container images (`docker image prune -f`).
-hi
