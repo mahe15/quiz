@@ -22,6 +22,7 @@ Real-time 1v1 multiplayer quiz game built with React, Node.js, Socket.IO, and My
 | Realtime | Socket.IO |
 | Database | MySQL 8 |
 | Containerization | Docker + Docker Compose |
+| CI/CD Pipeline | GitHub Actions |
 
 ## Quick Start
 ```bash
@@ -29,7 +30,7 @@ git clone https://github.com/mahe15/quiz
 ```
 ### Option 1: Docker (Recommended)
 
-"In Your Linux Ubuntu"
+In Your Linux / Ubuntu / Local environment:
 
 ```bash
 docker compose up --build
@@ -71,6 +72,8 @@ Open [http://localhost:5173](http://localhost:5173) in **two tabs** and click **
 
 ```
 QuizBattle/
+├── .github/
+│   └── workflows/      # GitHub Actions CI/CD workflows (ci-cd.yml)
 ├── frontend/          # React + Vite
 │   └── src/
 │       ├── components/  # Navbar, Hero, GameCard, QuestionCard, Timer, etc.
@@ -87,8 +90,25 @@ QuizBattle/
 ├── database/          # SQL schema + seed data
 ├── Dockerfile
 ├── docker-compose.yml
+├── deployment_guide.md
 └── README.md
 ```
+
+## CI/CD & Deployment
+
+QuizBattle comes configured with an automated **GitHub Actions CI/CD Pipeline**:
+
+- **Continuous Integration (CI)**:
+  - Runs on every `push` and `pull_request` to `main`.
+  - Performs Oxlint code linting (`npm run lint`).
+  - Verifies Vite production build (`npm run build`).
+  - Tests multi-stage Docker build (`Dockerfile`).
+- **Continuous Deployment (CD)**:
+  - Runs automatically when changes are merged into `main`.
+  - Pushes production Docker container image to **Docker Hub**.
+  - Deploys automatically to an AWS EC2 instance (or host server) via SSH.
+
+For detailed setup instructions, see [deployment_guide.md](file:///c:/Users/Mahendra%20desai/OneDrive/Desktop/quiz%20game/deployment_guide.md) and [docker_architecture_guide.md](file:///c:/Users/Mahendra%20desai/OneDrive/Desktop/quiz%20game/docker_architecture_guide.md).
 
 ## Game Flow
 
