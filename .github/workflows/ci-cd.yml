@@ -1,4 +1,4 @@
-name: QuizBattle CI/CD Pipeline
+name: QuizBattle CI Pipeline
 
 on:
   push:
@@ -54,22 +54,3 @@ jobs:
           push: false
           tags: quizbattle:ci
 
-  # ── 3. CD: Deploy to Server (Push to main only) ─────────────
-  deploy:
-    name: Deploy to Server
-    needs: [ci, docker-check]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: SSH Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.HOST || vars.HOST }}
-          username: ${{ secrets.USERNAME || vars.USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY || vars.SSH_PRIVATE_KEY }}
-          script: |
-            cd quiz
-            git pull origin main
-            docker compose up -d --build
-            docker image prune -f

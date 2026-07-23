@@ -6,6 +6,8 @@ const path = require('path');
 require('dotenv').config();
 
 const quizRoutes = require('./routes/quizRoutes');
+const authRoutes = require('./routes/authRoutes');
+const pool = require('./config/db');
 const { socketHandler, waitingQueue } = require('./socket/socketHandler');
 
 const app = express();
@@ -20,6 +22,24 @@ const io = new Server(server, {
   },
 });
 
+// Auto-initialize users table if missing
+async function initDB() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          username VARCHAR(50) NOT NULL UNIQUE,
+          email VARCHAR(100) NOT NULL UNIQUE,
+          password VARCHAR(255) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (err) {
+    console.error('Database table check error:', err.message);
+  }
+}
+initDB();
+
 // Middleware
 app.use(cors({
   origin: [CLIENT_URL, 'http://localhost:5173', 'http://localhost:4173'],
@@ -27,6 +47,7 @@ app.use(cors({
 app.use(express.json());
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api', quizRoutes);
 
 // Online player count endpoint

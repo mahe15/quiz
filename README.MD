@@ -4,31 +4,27 @@ Real-time 1v1 multiplayer quiz game built with React, Node.js, Socket.IO, and My
 
 ---
 
-## 🏗️ System & Deployment Architecture
+## 🏗️ System Architecture
 
 ```mermaid
 graph TD
     subgraph DevEnv["💻 Developer Machine"]
-        Dev["Developer"] -->|git push origin main| GitHub["GitHub Repository (mahe15/quiz)"]
+        Dev["Developer"] -->|git push / PR to main| GitHub["GitHub Repository (mahe15/quiz)"]
     end
 
-    subgraph GHActions["⚙️ GitHub Actions CI/CD Pipeline"]
+    subgraph GHActions["⚙️ GitHub Actions CI Pipeline"]
         GitHub -->|Triggers Workflow| Runner["GitHub Actions Runner (ubuntu-latest)"]
         
-        subgraph CI_Stage["Phase 1: Continuous Integration (CI)"]
+        subgraph CI_Stage["Continuous Integration (CI)"]
             Runner --> Step1["Setup Node.js 22"]
             Step1 --> Step2["Frontend Lint (Oxlint) & Build (Vite)"]
             Step2 --> Step3["Backend Deps Install"]
             Step3 --> Step4["Docker Build Verification"]
         end
-
-        subgraph CD_Stage["Phase 2: Continuous Deployment (CD)"]
-            Step4 -->|On Push to main| SSH_Step["SSH Action (appleboy/ssh-action)"]
-        end
     end
 
-    subgraph AWSEC2["☁️ AWS EC2 Production Server"]
-        SSH_Step -->|Connects via SSH| EC2_Host["EC2 Linux Host"]
+    subgraph AWSEC2["☁️ AWS EC2 Production Host / Server"]
+        EC2_Host["EC2 Linux Host"]
         
         subgraph DockerNetwork["🐳 Docker Compose Network (quizbattle_default)"]
             EC2_Host -->|docker compose up -d --build| App_Container["📦 App Container (quizbattle-app)\n• Node.js 20 Express Backend (:5000)\n• Socket.IO Real-time Engine\n• Static Vite Frontend (dist/)"]
@@ -54,7 +50,7 @@ graph TD
 
 ---
 
-## 🔄 CI/CD Deployment Sequence Flow
+## 🔄 CI Workflow Sequence Flow
 
 ```mermaid
 sequenceDiagram
@@ -62,28 +58,16 @@ sequenceDiagram
     actor Dev as Developer
     participant GH as GitHub Repository
     participant GA as GitHub Actions
-    participant EC2 as AWS EC2 Server
-    participant DC as Docker Compose
 
-    Dev->>GH: git push origin main
+    Dev->>GH: git push / pull_request to main
     GH->>GA: Trigger ci-cd.yml workflow
     
     rect rgb(30, 30, 46)
-        note over GA: Phase 1: CI Checks (Build & Test)
+        note over GA: Continuous Integration (CI) Checks
         GA->>GA: Setup Node.js 22 & npm cache
         GA->>GA: Run Frontend Oxlint & Vite Build
         GA->>GA: Validate Backend dependencies
         GA->>GA: Test Dockerfile multi-stage build (quizbattle:ci)
-    end
-
-    rect rgb(17, 17, 27)
-        note over GA, EC2: Phase 2: SSH Continuous Deployment
-        GA->>EC2: SSH Connection via appleboy/ssh-action (HOST, USERNAME, SSH_PRIVATE_KEY)
-        EC2->>GH: git pull origin main
-        EC2->>DC: docker compose up -d --build
-        DC->>DC: Rebuild & restart quizbattle-app
-        DC->>DC: Validate mysql container health
-        EC2->>DC: docker image prune -f
     end
     
     GA-->>Dev: Pipeline Succeeded ✅
@@ -123,7 +107,7 @@ graph LR
 - **10 Questions per Match** — 10 seconds per question with auto-advance on timeout.
 - **Modern Responsive UI** — Dark theme, glassmorphism, Framer Motion animations.
 - **Confetti Victory Celebrations** 🎉
-- **Automated CI/CD** — Zero-downtime deployment via GitHub Actions & Docker Compose.
+- **Automated CI Pipeline** — Automated linting, building, and Docker image validation via GitHub Actions.
 
 ---
 
@@ -138,7 +122,7 @@ graph LR
 | **Real-time Engine** | Socket.IO | Bidirectional WebSocket matchmaking & game state sync |
 | **Database** | MySQL 8.0 | Structured storage for questions & match logs |
 | **Containerization** | Docker + Docker Compose | Multi-stage production image orchestration |
-| **CI/CD Pipeline** | GitHub Actions | Automated build, linting, and SSH deployment |
+| **CI Pipeline** | GitHub Actions | Automated build, linting, and Docker image validation |
 
 ---
 
@@ -191,7 +175,7 @@ Open [http://localhost:5173](http://localhost:5173) in **two browser tabs** and 
 QuizBattle/
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yml           # GitHub Actions CI/CD Pipeline
+│       └── ci-cd.yml           # GitHub Actions CI Pipeline
 ├── frontend/                   # React + Vite Client Application
 │   └── src/
 │       ├── components/         # Navbar, Hero, GameCard, QuestionCard, Timer, etc.
@@ -219,34 +203,24 @@ QuizBattle/
 
 ## 🔑 GitHub Actions & Server Deployment Setup
 
-### 1. Required GitHub Repository Secrets
+### 1. Automated CI Checks
 
-Under **Settings > Secrets and variables > Actions**, add the following repository secrets:
+The GitHub Actions workflow (`.github/workflows/ci-cd.yml`) automatically triggers on every `push` or `pull_request` targeting the `main` branch to run the following CI tasks:
+- **Build & Lint**: Installs Node.js dependencies, runs Oxlint on the frontend, and verifies Vite frontend build and backend dependency installation.
+- **Docker Check**: Verifies that the multi-stage `Dockerfile` compiles cleanly without pushing to a registry.
 
-| Secret Name | Description | Example Value |
-| :--- | :--- | :--- |
-| `HOST` | EC2 Public IP address or domain | `54.210.45.12` |
-| `USERNAME` | Linux SSH user | `ubuntu` or `ec2-user` |
-| `SSH_PRIVATE_KEY` | Contents of your EC2 `.pem` SSH key | `-----BEGIN OPENSSH PRIVATE KEY----- ...` |
+### 2. Server Manual Deployment Setup
 
-### 2. EC2 Server One-Time Setup Commands
-
-SSH into your AWS EC2 instance and execute:
+Since automated CD deployment is disabled, deploy updates manually on your server by connecting via SSH and running:
 
 ```bash
-# Update system & install Docker & Git
-sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2 git
-
-# Add ubuntu user to docker group
-sudo usermod -aG docker ubuntu
-newgrp docker
-
-# Clone repository to host
-git clone https://github.com/mahe15/quiz.git quiz
+# Update local repository code
 cd quiz
+git pull origin main
 
-# Start container initial stack
+# Rebuild and start container stack
 docker compose up -d --build
+docker image prune -f
 ```
 
 ---

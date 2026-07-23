@@ -5,9 +5,12 @@ import useSocket from '../hooks/useSocket';
 import socket from '../services/socket';
 import Loading from '../components/Loading';
 
+import { useAuth } from '../context/AuthContext';
+
 export default function Matchmaking() {
   const navigate = useNavigate();
-  const { emit, on, off, disconnect } = useSocket();
+  const { user, token } = useAuth();
+  const { emit, on, disconnect } = useSocket();
   const [status, setStatus] = useState('searching'); // searching | found | countdown
   const [opponent, setOpponent] = useState(null);
   const [countdown, setCountdown] = useState(null);
@@ -24,12 +27,10 @@ export default function Matchmaking() {
   }, [roomId, players]);
 
   useEffect(() => {
-    // Generate a random player name
-    const names = ['Phoenix', 'Thunder', 'Shadow', 'Storm', 'Blaze', 'Frost', 'Nova', 'Titan', 'Viper', 'Ace'];
-    const name = names[Math.floor(Math.random() * names.length)] + '_' + Math.floor(Math.random() * 999);
+    const name = user?.username || 'Player';
 
-    // Join the matchmaking queue
-    emit('joinQueue', { name });
+    // Join the matchmaking queue with name and token
+    emit('joinQueue', { name, token });
 
     // Listen for match found
     const cleanupMatch = on('matchFound', (data) => {
@@ -61,7 +62,7 @@ export default function Matchmaking() {
       cleanupCountdown();
       cleanupStart();
     };
-  }, [emit, on, navigate]);
+  }, [emit, on, navigate, user?.username, token]);
 
   const handleCancel = useCallback(() => {
     emit('leaveQueue');

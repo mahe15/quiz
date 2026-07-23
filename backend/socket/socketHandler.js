@@ -4,6 +4,9 @@ const calculateScore = require('../utils/calculateScore');
 const shuffleQuestions = require('../utils/shuffleQuestions');
 const { saveMatch, saveAnswers } = require('../controllers/gameController');
 
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'quizbattle_default_jwt_secret_key_2026';
+
 // In-memory game state
 const waitingQueue = [];       // players waiting for a match
 const rooms = new Map();       // roomId -> room state
@@ -18,7 +21,15 @@ function socketHandler(io) {
 
     // ── Join Queue ──────────────────────────────────────────
     socket.on('joinQueue', async (data) => {
-      const playerName = data?.name || `Player_${socket.id.slice(0, 5)}`;
+      let playerName = data?.name || `Player_${socket.id.slice(0, 5)}`;
+      if (data?.token) {
+        try {
+          const decoded = jwt.verify(data.token, JWT_SECRET);
+          playerName = decoded.username;
+        } catch (e) {
+          console.warn('Socket token verification failed, fallback to name parameter');
+        }
+      }
       console.log(`🔍 ${playerName} (${socket.id}) joined the queue`);
 
       // Prevent duplicate queue entries
