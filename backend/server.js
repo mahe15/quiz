@@ -13,16 +13,11 @@ const { socketHandler, waitingQueue } = require('./socket/socketHandler');
 const app = express();
 const server = http.createServer(app);
 
-const rawClientUrl = process.env.CLIENT_URL || 'http://localhost:5173,http://localhost:4173';
-const allowedOrigins = rawClientUrl.includes(',')
-  ? rawClientUrl.split(',').map((u) => u.trim())
-  : [rawClientUrl.trim()];
-
-const corsOrigin = rawClientUrl === '*' ? '*' : allowedOrigins;
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 const io = new Server(server, {
   cors: {
-    origin: corsOrigin,
+    origin: [CLIENT_URL, 'http://localhost:5173', 'http://localhost:4173'],
     methods: ['GET', 'POST'],
   },
 });
@@ -40,14 +35,14 @@ async function initDB() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
   } catch (err) {
-    console.warn('⚠️  Database table initialization skipped:', err.message);
+    console.error('Database table check error:', err.message);
   }
 }
 initDB();
 
 // Middleware
 app.use(cors({
-  origin: corsOrigin,
+  origin: [CLIENT_URL, 'http://localhost:5173', 'http://localhost:4173'],
 }));
 app.use(express.json());
 
