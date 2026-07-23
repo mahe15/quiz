@@ -40,7 +40,7 @@ async function initDB() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
   } catch (err) {
-    console.error('Database table check error:', err.message);
+    console.warn('⚠️  Database table initialization skipped:', err.message);
   }
 }
 initDB();
