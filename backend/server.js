@@ -13,11 +13,16 @@ const { socketHandler, waitingQueue } = require('./socket/socketHandler');
 const app = express();
 const server = http.createServer(app);
 
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const rawClientUrl = process.env.CLIENT_URL || 'http://localhost:5173,http://localhost:4173';
+const allowedOrigins = rawClientUrl.includes(',')
+  ? rawClientUrl.split(',').map((u) => u.trim())
+  : [rawClientUrl.trim()];
+
+const corsOrigin = rawClientUrl === '*' ? '*' : allowedOrigins;
 
 const io = new Server(server, {
   cors: {
-    origin: [CLIENT_URL, 'http://localhost:5173', 'http://localhost:4173'],
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
   },
 });
@@ -42,7 +47,7 @@ initDB();
 
 // Middleware
 app.use(cors({
-  origin: [CLIENT_URL, 'http://localhost:5173', 'http://localhost:4173'],
+  origin: corsOrigin,
 }));
 app.use(express.json());
 
